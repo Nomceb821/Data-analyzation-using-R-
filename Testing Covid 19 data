@@ -1,0 +1,119 @@
+library(dplyr)
+library(ggplot2)
+
+file_path <- 'C:/Users/lenovo/Desktop/RStudio/Covid19_line'
+data <- read.csv(file = file_path)
+head(data)
+View(data)
+
+#CLEANING DATA 
+#In the death column some of the rows show date instead of 1 0r 0
+Covid19_line$death_dummy <- as.integer(Covid19_line$death != 0)
+
+#Calculating death rate 
+sum(Covid19_line$death_dummy)/ nrow(Covid19_line)
+
+#According to the media the person who is most likely to die from Covid is an adult compared to a younger person:
+
+#Verifying this Hypothesis
+dead = subset(Covid19_line, death_dummy == 1)
+alive = subset(Covid19_line, death_dummy == 0)
+
+mean(dead$age, na.rm = TRUE) #NA.RM we asking R to ignore any null values
+mean(alive$age, na.rm = TRUE)
+
+# Is this statistically significant?
+
+t.test(alive$age, dead$age, alternative ='two.sided', conf.level = 0.95)
+#There's a 95% chance that the difference between a person alive and dead in  age is from 24 years to 16 years. On average a person who's alive is much younger.
+# The p-value in my dataset is 0 therefore there's 0% chance
+#that the ages of the two populations are equal
+# Since the p-value < 0.05 we reject the null hypothesis 
+#This concludes that our results are statistically significant 
+#In this case we have concluded that indeed people who are more likely to die 
+#from Covid are much older people than the people who do not die from Cov
+
+
+#Are women most likely to die from Covid or vice-versa?
+#Hypotheses: Gender has no effect on Covid death
+
+factor(Covid19_line$gender, labels =c(1,0)) -> Covid19_line$gender
+as.factor(Covid19_line$gender)
+
+women = subset(Covid19_line, gender == 1)
+men = subset(Covid19_line, gender ==0)
+
+mean(men$death_dummy, na.rm = TRUE) # 8.7% death
+mean(women$death_dummy, na.rm = TRUE) #3.7% death
+# Is this statistically significant?
+
+t.test(men$death_dummy, women$death_dummy, alternative ='two.sided'
+       , conf.level = 0.95)
+# This is statistically significant. Therefore I reject null hypothesis because the p-value < 0.05 meaning gender has no effect on Covid death.
+
+# Count the number of females that are dead (status = 0)
+female_dead_count <- Covid19_line %>%
+  filter(gender == 0 & death_dummy == 1) %>%
+  summarise(count = n())
+
+# Count the number of females that are alive (status = 1)
+female_alive_count <- Covid19_line %>%
+  filter(gender == 0 & death_dummy == 0) %>%
+  summarise(count = n())
+
+# Print the results
+print(female_dead_count)
+print(female_alive_count)
+
+#Counting the number males that are dead 
+male_dead_count <- Covid19_line %>%
+  filter(gender == 1 & death_dummy == 1) %>%
+  summarise(count = n())
+
+# Counting the number of males that are alive 
+male_alive_count <- Covid19_line %>%
+  filter(gender == 1 & death_dummy == 0) %>%
+  summarise(count = n())
+
+print(male_dead_count)
+print(male_alive_count)
+
+# To plot a bar graph I need to summarise the count
+#Group by gender and death_dummy
+# Remove rows with NA values
+gender_death_count <- Covid19_line %>%
+  filter(!is.na(gender) & !is.na(death_dummy)) %>%  # Filter out rows where gender or death_dummy is NA
+  group_by(gender, death_dummy) %>%
+  summarise(count = n(), .groups = 'drop')
+
+# Convert death_dummy and gender into better labeling terms
+gender_death_count$death_dummy <- factor(gender_death_count$death_dummy, 
+                                         levels = c(0, 1),
+                                         labels = c("Alive", "Dead"))
+
+gender_death_count$gender <- factor(gender_death_count$gender, 
+                                    levels = c(0, 1),
+                                    labels = c("Female", "Male"))
+
+# Plot the bar graph
+ggplot(data = gender_death_count, aes(x = death_dummy, y = count, fill = gender)) + 
+  geom_bar(stat='identity', position = 'dodge') +
+  labs(title = "Gender-Based Count of COVID-19 Status (Dead or Alive)",
+       x = "status",
+       y = "Count") +
+  scale_y_continuous(expand = c(0, 0)) +
+  theme_minimal() +
+  theme(panel.background = element_blank(),
+        plot.background = element_blank(),
+        legend.background = element_blank(),
+        legend.key = element_blank(),
+        strip.background = element_blank(),
+        axis.text = element_text(colour = 'black'),
+        axis.ticks = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.line = element_line(colour= 'black'),
+        strip.text = element_blank(),
+        #plot.spacing = unit(0,'lines')
+  ) 
+#update.packages('ggplot2')  
